@@ -1,6 +1,8 @@
 const admin = require('firebase-admin');
 const fs = require('fs');
 const path = require('path');
+const today = getTodayDateFolderName();
+let stampPath = '';
 
 // Path to your service account key JSON file
 // const serviceAccount = require('../accountancy-app-production-firebase-adminsdk-g22ib-316ed760c0.json');
@@ -24,13 +26,11 @@ function initFirestore(serviceAccountPath) {
 }
 
 function alreadyRanToday(dirName) {
-  const stampPath = path.join(dirName, '.last_run_date');
-  const today = getTodayDateFolderName();
+  stampPath = path.join(dirName, '.last_run_date');
   if (fs.existsSync(stampPath)) {
     const lastRun = fs.readFileSync(stampPath, 'utf8');
     if (lastRun === today) return true;
   }
-  fs.writeFileSync(stampPath, today);
   return false;
 }
 
@@ -75,7 +75,7 @@ async function exportDataPerUIDAndYear(dirName) {
     });
   }
 
-  const baseDir = path.join(dirName, 'user_exports', getTodayDateFolderName());
+  const baseDir = path.join(dirName, 'user_exports', today);
   fs.mkdirSync(baseDir, { recursive: true });
 
   for (const [uid, yearBuckets] of Object.entries(userDataMap)) {
@@ -93,6 +93,9 @@ async function exportDataPerUIDAndYear(dirName) {
       }
     }
   }
+
+  fs.writeFileSync(stampPath, today);
+
 }
 
 // exportDataPerUIDAndYear().catch(console.error);
