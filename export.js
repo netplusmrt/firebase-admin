@@ -2,14 +2,12 @@ const admin = require('firebase-admin');
 const fs = require('fs');
 const path = require('path');
 const today = getTodayDateFolderName();
-let stampPath = '';
+const stampPath = './.last_run_date';
+const stateFile = './.last_collection_exported.json';
+const COLLECTIONS_TO_EXPORT = ['companies', 'customerBalance', 'customers', 'itemRates','items',
+  'challans','invoices', 'jobs', 'payments', 'purchaseReturns', 
+  'purchases', 'quotes', 'salesReturns', 'stocks']; // List all relevant collections here
 
-// Path to your service account key JSON file
-// const serviceAccount = require('../accountancy-app-production-firebase-adminsdk-g22ib-316ed760c0.json');
-
-// admin.initializeApp({
-//   credential: admin.credential.cert(serviceAccount)
-// });
 
 let initialized = false;
 
@@ -25,8 +23,7 @@ function initFirestore(serviceAccountPath) {
   initialized = true;
 }
 
-function alreadyRanToday(dirName) {
-  stampPath = path.join(dirName, '.last_run_date');
+function alreadyRanToday() {
   if (fs.existsSync(stampPath)) {
     const lastRun = fs.readFileSync(stampPath, 'utf8');
     if (lastRun === today) return true;
@@ -34,48 +31,66 @@ function alreadyRanToday(dirName) {
   return false;
 }
 
+function getNextCollectionToExport() {
+  let lastExported = null;
+
+  if (fs.existsSync(stateFile)) {
+    const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+    lastExported = state.last || null;
+  }
+
+  let nextIndex = 0;
+  if (lastExported) {
+    const lastIndex = COLLECTIONS_TO_EXPORT.indexOf(lastExported);
+    nextIndex = (lastIndex + 1) % COLLECTIONS_TO_EXPORT.length;
+  }
+
+  const next = COLLECTIONS_TO_EXPORT[nextIndex];
+  fs.writeFileSync(stateFile, JSON.stringify({ last: next }, null, 2));
+  return next;
+}
+
 function getTodayDateFolderName() {
   const now = new Date();
   return now.toISOString().split('T')[0]; // e.g., "2025-05-03"
 }
 
-async function exportDataPerUIDAndYear(dirName) {
+async function exportDataPerUIDAndYear() {
 
   const db = admin.firestore();
-  
-  if (alreadyRanToday(dirName)) {
+
+  if (alreadyRanToday()) {
     console.log('🕒 Already backed up today. Skipping...');
     process.exit(0);
   }
-  
+
   const userDataMap = {};
 
-  const collections = await db.listCollections();
-  console.log(`🔍 Found ${collections.length} collections`);
+  // const collections = await db.listCollections();
+  // console.log(`🔍 Found ${collections.length} collections`);
 
-  for (const collectionRef of collections) {
-    const collectionName = collectionRef.id;
-    const snapshot = await db.collection(collectionName).get();
+  const collectionName = getNextCollectionToExport();
+
+  console.log(`⏳ Scanning collection: ${collectionName}`);
+
+  const snapshot = await db.collection(collectionName).get();
     
-    console.log(`⏳ Scanning collection: ${collectionName}`);
+  snapshot.forEach(doc => {
+    const data = doc.data();
+    const uid = data.uid;
+    if (!uid) return;
 
-    snapshot.forEach(doc => {
-      const data = doc.data();
-      const uid = data.uid;
-      if (!uid) return;
+    const financialYear = data.financialYear;
+    const yearKey = financialYear || '_root';
 
-      const financialYear = data.financialYear;
-      const yearKey = financialYear || '_root';
+    if (!userDataMap[uid]) userDataMap[uid] = {};
+    if (!userDataMap[uid][yearKey]) userDataMap[uid][yearKey] = {};
+    if (!userDataMap[uid][yearKey][collectionName]) userDataMap[uid][yearKey][collectionName] = [];
 
-      if (!userDataMap[uid]) userDataMap[uid] = {};
-      if (!userDataMap[uid][yearKey]) userDataMap[uid][yearKey] = {};
-      if (!userDataMap[uid][yearKey][collectionName]) userDataMap[uid][yearKey][collectionName] = [];
+    userDataMap[uid][yearKey][collectionName].push({ id: doc.id, ...data });
+  });
 
-      userDataMap[uid][yearKey][collectionName].push({ id: doc.id, ...data });
-    });
-  }
-
-  const baseDir = path.join(dirName, 'user_exports', today);
+  const baseDir = path.join("./", 'user_exports', today);
   fs.mkdirSync(baseDir, { recursive: true });
 
   for (const [uid, yearBuckets] of Object.entries(userDataMap)) {
