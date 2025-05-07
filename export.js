@@ -4,10 +4,6 @@ const path = require('path');
 const today = getTodayDateFolderName();
 const stampPath = './.last_run_date';
 const stateFile = './.last_collection_exported.json';
-const COLLECTIONS_TO_EXPORT = ['companies', 'customerBalance', 'customers', 'itemRates','items',
-  'challans','invoices', 'jobs', 'payments', 'purchaseReturns', 
-  'purchases', 'quotes', 'salesReturns', 'stocks']; // List all relevant collections here
-
 
 let initialized = false;
 
@@ -31,7 +27,7 @@ function alreadyRanToday() {
   return false;
 }
 
-function getNextCollectionToExport() {
+function getNextCollectionToExport(COLLECTIONS_TO_EXPORT) {
   let lastExported = null;
 
   if (fs.existsSync(stateFile)) {
@@ -55,7 +51,9 @@ function getTodayDateFolderName() {
   return now.toISOString().split('T')[0]; // e.g., "2025-05-03"
 }
 
-async function exportDataPerUIDAndYear() {
+async function exportDataPerUIDAndYear(serviceAccountPath) {
+
+  initFirestore(serviceAccountPath);
 
   const db = admin.firestore();
 
@@ -66,10 +64,12 @@ async function exportDataPerUIDAndYear() {
 
   const userDataMap = {};
 
-  // const collections = await db.listCollections();
-  // console.log(`🔍 Found ${collections.length} collections`);
+  const collections = await db.listCollections();
+  console.log(`🔍 Found ${collections.length} collections`);
 
-  const collectionName = getNextCollectionToExport();
+  const COLLECTIONS_TO_EXPORT = collections.map(col => col.id); // Convert to names
+
+  const collectionName = getNextCollectionToExport(COLLECTIONS_TO_EXPORT);
 
   console.log(`⏳ Scanning collection: ${collectionName}`);
 
@@ -90,7 +90,7 @@ async function exportDataPerUIDAndYear() {
     userDataMap[uid][yearKey][collectionName].push({ id: doc.id, ...data });
   });
 
-  const baseDir = path.join("./", 'user_exports', today);
+  const baseDir = path.join("./", 'user_exports');
   fs.mkdirSync(baseDir, { recursive: true });
 
   for (const [uid, yearBuckets] of Object.entries(userDataMap)) {
