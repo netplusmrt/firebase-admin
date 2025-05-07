@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 // CONFIG
-const OUTPUT_DIR = './incremental_backup';
+const OUTPUT_DIR = './user_exports';
 const STATE_FILE = './.last_backup.json';
 
 let initialized = false;
@@ -29,18 +29,28 @@ function saveBackupState(state) {
   fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
 }
 
-function getBackupFile(uid, financialYear, collectionName, docs) {
-  const filePath = path.join(OUTPUT_DIR, uid, financialYear, `${collectionName}.json`);
-  return filePath;
-}
-
 function writeBackupFile(uid, financialYear, collectionName, docs) {
-  const backupDate = new Date().toISOString().split('T')[0];
   const dir = path.join(OUTPUT_DIR, uid, financialYear);
+  const filePath = path.join(dir, `${collectionName}.json`);
+
   fs.mkdirSync(dir, { recursive: true });
 
-  const filePath = path.join(dir, `${collectionName}.json`);
-  fs.writeFileSync(filePath, JSON.stringify(docs, null, 2));
+  let existingData = [];
+  if (fs.existsSync(filePath)) {
+    existingData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  }
+
+  // Replace by ID if exists
+  for (const doc of docs) {
+    const index = existingData.findIndex(item => item.id === doc.id);
+    if (index >= 0) {
+      existingData[index] = doc;
+    } else {
+      existingData.push(doc);
+    }
+  }
+
+  fs.writeFileSync(filePath, JSON.stringify(existingData, null, 2));
   console.log(`✅ Backed up ${docs.length} docs for UID=${uid}, collection=${collectionName} to ${filePath}`);
 }
 
@@ -68,20 +78,6 @@ async function runIncrementalBackup(serviceAccountPath) {
       console.log(`ℹ️ No new documents in collection "${collectionName}" since last backup.`);
       continue;
     }
-
-    // // Load existing backup file (if any)
-    // let existingRecords = [];
-    // let recordIds = new Set();
-
-    // const sampleDoc = snapshot.docs[0].data();
-    // const year = sampleDoc.financialYear || '_root';
-    // const filePath = path.join(OUTPUT_DIR, uid, year, `${collectionName}.json`);
-    // fs.mkdirSync(path.dirname(filePath), { recursive: true });
-
-    // if (fs.existsSync(filePath)) {
-    //   existingRecords = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    //   recordIds = new Set(existingRecords.map(d => d.id));
-    // }
 
     // Organize by uid -> financialYear -> docs[]
     const grouped = {};
