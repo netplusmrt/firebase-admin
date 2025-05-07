@@ -1,6 +1,6 @@
 const firebaseExport = require("../firebase-admin/export"); 
 
 // Path to your service account key JSON file
-firebaseExport.initFirestore('../accountancy-app-production-firebase-adminsdk-g22ib-316ed760c0')
+const serviceAccountPath = '../accountancy-app-production-firebase-adminsdk-g22ib-316ed760c0.json'; // Path to your key
 
-firebaseExport.exportDataPerUIDAndYear().catch(console.error);
+firebaseExport.exportDataPerUIDAndYear(serviceAccountPath).catch(console.error);
