@@ -1,6 +1,4 @@
-const firebaseExport = require("../firebase-admin/export"); 
+const { exportDataPerUIDAndYear } = require("../firebase-admin/export"); 
+const constants = require('./constants')
 
-// Path to your service account key JSON file
-const serviceAccountPath = '../accountancy-app-production-firebase-adminsdk-g22ib-316ed760c0.json'; // Path to your key
-
-firebaseExport.exportDataPerUIDAndYear(serviceAccountPath).catch(console.error);
+exportDataPerUIDAndYear(constants.serviceAccountPath, process.argv[2]).catch(console.error);
