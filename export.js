@@ -62,8 +62,6 @@ async function exportDataPerUIDAndYear(serviceAccountPath) {
     process.exit(0);
   }
 
-  const userDataMap = {};
-
   const collections = await db.listCollections();
   console.log(`🔍 Found ${collections.length} collections`);
 
@@ -75,6 +73,27 @@ async function exportDataPerUIDAndYear(serviceAccountPath) {
 
   const snapshot = await db.collection(collectionName).get();
     
+  exportCollection(collectionName, snapshot);
+
+}
+
+async function exportSingleCollection(serviceAccountPath, collectionName) {
+
+  initFirestore(serviceAccountPath);
+
+  const db = admin.firestore();
+
+  console.log(`⏳ Scanning collection: ${collectionName}`);
+
+  const snapshot = await db.collection(collectionName).get();
+    
+  exportCollection(collectionName, snapshot);
+
+}
+
+function exportCollection(collectionName, snapshot) {
+  const userDataMap = {};
+
   snapshot.forEach(doc => {
     const data = doc.data();
     const uid = data.uid;
@@ -110,12 +129,11 @@ async function exportDataPerUIDAndYear(serviceAccountPath) {
   }
 
   fs.writeFileSync(stampPath, today);
-
 }
 
 // exportDataPerUIDAndYear().catch(console.error);
 
 module.exports = {
-  initFirestore,
-  exportDataPerUIDAndYear
+  exportDataPerUIDAndYear,
+  exportSingleCollection
 };
