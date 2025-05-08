@@ -5,6 +5,7 @@ const path = require('path');
 // CONFIG
 const OUTPUT_DIR = './user_exports';
 const STATE_FILE = './.last_backup.json';
+const readline = require('readline');
 
 let initialized = false;
 
@@ -51,7 +52,7 @@ function writeBackupFile(uid, financialYear, collectionName, docs) {
   }
 
   fs.writeFileSync(filePath, JSON.stringify(existingData, null, 2));
-  console.log(`✅ Backed up ${docs.length} docs for UID=${uid}, collection=${collectionName} to ${filePath}`);
+  console.log(`✅ Backed up ${docs.length} docs to ${filePath}`);
 }
 
 async function runIncrementalBackup(serviceAccountPath) {
@@ -112,6 +113,16 @@ async function runIncrementalBackup(serviceAccountPath) {
 
   saveBackupState(backupState);
   console.log('✅ Incremental backup completed.');
+
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  rl.question('Press Any key to exit...', () => {
+    rl.close();
+  });
 }
 
 module.exports = { runIncrementalBackup };
