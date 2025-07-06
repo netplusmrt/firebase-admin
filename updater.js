@@ -18,9 +18,9 @@ async function updateInvoiceTaxableAmount(serviceAccountPath) {
   initFirestore(serviceAccountPath);
   const db = admin.firestore();
 
-  const usersRef = db.collection('invoices');
+  const invoicesRef = db.collection('invoices');
   const snapshot = await invoicesRef
-    .where('invoiceOptions.layoutId', '==', '1')
+    .where('invoiceOptions.layoutId', '==', 1)
     .where('taxableAmount', '==', 0)
     .get();
 
@@ -35,6 +35,7 @@ async function updateInvoiceTaxableAmount(serviceAccountPath) {
   for (const doc of snapshot.docs) {
     const data = doc.data();
     const docRef = invoicesRef.doc(doc.id);
+    console.log(`ℹ️ ${data.financialYear} ${data.invoiceNumber} ${data.invoiceOptions.layoutId} ${data.subTotal}`);
 
     if (typeof data.subTotal === 'number') {
       batch.update(docRef, {
