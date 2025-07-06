@@ -37,7 +37,7 @@ async function updateInvoiceTaxableAmount(serviceAccountPath) {
     const docRef = invoicesRef.doc(doc.id);
     console.log(`ℹ️ ${data.financialYear} ${data.invoiceNumber} ${data.invoiceOptions.layoutId} ${data.subTotal}`);
 
-    if (typeof data.subTotal === 'number' && data.subTotal != 0) {
+    if (typeof data.subTotal === 'number' && data.subTotal > 0) {
       batch.update(docRef, {
         taxableAmount: data.subTotal,
       });
